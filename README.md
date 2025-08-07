@@ -21,7 +21,8 @@ The script performs a robust test of the user login scenario on bsky.app. It is 
 To install Playwright and its required browsers, run the following commands in your terminal:
 ```pip install playwright
 playwright install
-
+```
 ### Running the Test:
 To run the test, execute the following command from your terminal:
 python Translated_BlueSky.py
+
