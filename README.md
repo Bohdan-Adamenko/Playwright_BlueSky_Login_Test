@@ -26,6 +26,7 @@ playwright install
 ### Running the Test:
 To run the test, execute the following command from your terminal:
 ```
-python Playwright_BlueSky.py.py
+python Playwright_BlueSky.py
 ```
+
 
