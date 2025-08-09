@@ -1,84 +1,69 @@
 import sys
 import time
 from playwright.sync_api import sync_playwright, expect
+timestamp = time.strftime("%Y.%m.%d-%H;%M;%S")
 
 
-def handle_critical_failure(step_description, error):
+# --- HELPER FUNCTIONS ---
+def handle_critical_failure(step_description, e):
     print(f"🔥 CRITICAL FAILURE at step: '{step_description}'")
-    print(f"⚠️ Error details: {error}")
+    print(f"⚠️ Error details: {e}")
     sys.exit(1)
 
+def verification(page, value, element_name):
+    try:
+        expect(page.locator(value)).to_be_visible(timeout=5000)
+        print(f'✅ Verification PASSED: Button "{element_name}" is visible')
+        return True
+    except:
+        print(f'❌ Verification FAILED: Button "{element_name}" was NOT found')
+        return False
 
+def assertion(page, value, name):
+    try:
+        page(f"{value}", timeout=30000)
+        print(f'✅ Assertion PASSED: {name}')
+    except Exception as e:
+        handle_critical_failure(name, e)
+
+def assertion_fill(page, value, fill,  name):
+    try:
+        page(value).fill(fill, timeout=5000)
+        print(f'✅ Assertion PASSED: {name}')
+    except Exception as e:
+        handle_critical_failure(name, e)
+
+
+# --- MAIN TEST FUNCTION ---
 def run_test(page):
-
     overall_result = True
 
-    print("\n--- Critical verifications ---")
+    # --- STEP 1: LOGIN ---
+    print("\n--- Assertions ---")
 
-    try:
-        page.goto("https://bsky.app", timeout=30000)
-        print("✅ Navigated to bsky.app homepage")
-    except Exception as e:
-        handle_critical_failure("Navigating to homepage", e)
+    assertion(page.goto, "https://bsky.app", 'Navigated to "bsky.app" homepage')
+    assertion(page.click, 'button[aria-label="Sign in"]', 'Button "Sign In" clicked')
+    assertion_fill(page.get_by_placeholder, "Username or email address", "qatest.06082025@gmail.com", 'Email "qatest.06082025@gmail.com" entered')
+    assertion_fill(page.get_by_placeholder, "Password", "123459_BlueSky", 'Password entered')
+    assertion(page.click, 'button[aria-label="Next"]', 'Button "Next" clicked')
 
-    try:
-        page.click('button[aria-label="Sign in"]', timeout=30000)
-        print('✅ "Sign In" button clicked')
-    except Exception as e:
-        handle_critical_failure('Click on the "Sign In" button', e)
+    # --- STEP 2: LOGIN VERIFICATION ---
+    print("\n--- Verifications ---")
 
-    try:
-        page.get_by_placeholder("Username or email address").fill("qatest.06082025@gmail.com", timeout=5000)
-        print(f'✅ Email "qatest.06082025@gmail.com" entered')
-    except Exception as e:
-        handle_critical_failure("Entering email", e)
-
-    try:
-        page.get_by_placeholder("Password").fill("123459_BlueSky", timeout=30000)
-        print('✅ Password entered')
-    except Exception as e:
-        handle_critical_failure("Entering password", e)
-
-    try:
-        page.click('button[aria-label="Next"]', timeout=30000)
-        print('✅ "Next" button clicked')
-    except Exception as e:
-        handle_critical_failure('Click on the "Next" button', e)
-
-
-    print("\n--- Non-critical verifications ---")
-
-
-    try:
-        a = page.locator('button[aria-label="Compose new post"]')
-        expect(a).to_be_visible(timeout=5000)
-        print("✅ 1/3 Verification PASSED: 'Compose post' button is visible.")
-    except:
-        print("❌ 1/3 Verification FAILED: 'Compose post' button was NOT found.")
+    if not verification(page, 'button[aria-label="Compose new post"]', 'Compose post'):
         overall_result = False
-
-    try:
-        a = page.locator('div[data-testid="homeScreenFeedTabs-Discover"]')
-        expect(a).to_be_visible(timeout=5000)
-        print("✅ 2/3 Verification PASSED: 'Search' link is visible.")
-    except:
-        print("❌ 2/3 Verification FAILED: 'Search' link was NOT found.")
+    if not verification(page, 'div[data-testid="homeScreenFeedTabs-Discover"]', 'Discover'):
         overall_result = False
-
-    try:
-        a = page.locator('button[aria-label="Find people to follow"]')
-        expect(a).to_be_visible(timeout=5000)
-        print("✅ 3/3 Verification PASSED: 'Profile' link is visible.")
-    except:
-        print("❌ 3/3 Verification FAILED: 'Profile' link was NOT found.")
+    if not verification(page, 'button[aria-label="Find people to follow"]', 'Find people to follow'):
         overall_result = False
 
     return overall_result
 
 
+# --- EXECUTION BLOCK ---
 def main():
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.chromium.launch(headless=True)
         context = browser.new_context(
             locale="en-US",
             viewport={"width": 1920, "height": 1080}
@@ -88,9 +73,7 @@ def main():
         try:
             final_status = run_test(page)
         except SystemExit:
-            print("\n--- Test execution was halted due to a critical failure ---")
             final_status = False
-
         except Exception as e:
             print(f"\n🔥 AN UNEXPECTED CRITICAL ERROR OCCURRED: {e}")
             final_status = False
@@ -100,10 +83,9 @@ def main():
             if final_status:
                 print("🎉 OVERALL TEST RESULT: PASSED 🎉")
             else:
-                print("🔥 OVERALL TEST RESULT: FAILED 🔥")
-                timestamp = time.strftime("%Y%m%d-%H%M%S")
                 screenshot_path = f"failure_screenshot_{timestamp}.png"
                 try:
+                    print("🔥 OVERALL TEST RESULT: FAILED 🔥")
                     page.screenshot(path=screenshot_path)
                     print(f"📸 Screenshot saved to '{screenshot_path}'")
                 except Exception as screenshot_error:
